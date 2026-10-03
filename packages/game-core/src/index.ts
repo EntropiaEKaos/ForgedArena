@@ -24,3 +24,4 @@ export function scoreGoal(state: MatchSnapshot, team: TeamId): MatchSnapshot {
   };
 }
 export * from "./carry.js";
+export * from "./precision.js";
