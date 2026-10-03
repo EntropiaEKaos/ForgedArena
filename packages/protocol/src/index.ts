@@ -5,4 +5,5 @@ export type PlayerSnapshot={id:string;team:TeamId;position:Vec3;velocity:Vec3};
 export type BallSnapshot={position:Vec3;velocity:Vec3};
 export type MatchSnapshot={tick:number;clockMs:number;score:Record<TeamId,number>;players:PlayerSnapshot[];ball:BallSnapshot};
 export type ClientMessage={type:"input";payload:PlayerInput};
-export type ServerMessage={type:"snapshot";payload:MatchSnapshot}|{type:"welcome";payload:{playerId:string;team:TeamId}};
+export type ExecutionGrade="early"|"good"|"perfect"|"late";
+export type ServerMessage={type:"snapshot";payload:MatchSnapshot}|{type:"welcome";payload:{playerId:string;team:TeamId}}|{type:"execution";payload:{grade:ExecutionGrade;power:number;kind:"pass"|"shoot"}};
