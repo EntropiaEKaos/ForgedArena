@@ -25,7 +25,7 @@ export function resolveStrike(
 ): StrikeRequest {
   if (planarDistance(player, ball) > FOOTBALL_INTERACTION.strikeRange) return null;
   if (tick - state.lastStrikeTick < FOOTBALL_INTERACTION.cooldownTicks) return null;
-  if (!input.pass && !input.lob && !input.shoot) return null;
+  if (!input.pass && !input.lob && !input.shoot && !input.placedShot) return null;
 
   const moveLength = Math.hypot(input.aimX, input.aimZ);
   const direction = moveLength > 0.1
@@ -33,15 +33,16 @@ export function resolveStrike(
     : { x: ball.x - player.x, y: 0, z: ball.z - player.z };
 
   const requestedPower = Math.max(0, Math.min(1, input.actionPower));
-  const minPower = input.shoot ? FOOTBALL_INTERACTION.shotMinPower : FOOTBALL_INTERACTION.passMinPower;
-  const maxPower = input.shoot ? FOOTBALL_INTERACTION.shotMaxPower : FOOTBALL_INTERACTION.passMaxPower;
+  const isShot = input.shoot || input.placedShot;
+  const minPower = isShot ? FOOTBALL_INTERACTION.shotMinPower : FOOTBALL_INTERACTION.passMinPower;
+  const maxPower = isShot ? FOOTBALL_INTERACTION.shotMaxPower : FOOTBALL_INTERACTION.passMaxPower;
   const power = minPower + (maxPower - minPower) * requestedPower;
 
   const precision = resolvePrecision(direction, power, 0);
 
   return {
     strike: {
-      kind: input.shoot ? "shot" : input.lob ? "lob-pass" : "ground-pass",
+      kind: input.placedShot ? "placed-shot" : input.shoot ? "shot" : input.lob ? "lob-pass" : "ground-pass",
       direction: precision.direction,
       power,
     },
