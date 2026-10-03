@@ -1,6 +1,6 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { createInitialMatch, stepPlayerMotor, TICK_RATE, type MotorState } from "@forged-arena/game-core";
-import { FORGED_BALL } from "@forged-arena/physics";
+import { createInitialMatch, resolveStrike, stepPlayerMotor, TICK_RATE, type InteractionState, type MotorState } from "@forged-arena/game-core";
+import { calculateStrike, FORGED_BALL } from "@forged-arena/physics";
 import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
 import { WebSocket, WebSocketServer } from "ws";
 
@@ -33,7 +33,7 @@ world.createCollider(
   ballBody,
 );
 
-type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState };
+type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState };
 const sessions = new Map<WebSocket, Session>();
 const neutral = (seq = 0): PlayerInput => ({
   seq, moveX: 0, moveZ: 0, sprint: false, pass: false, shoot: false, tackle: false,
@@ -43,7 +43,7 @@ wss.on("connection", (socket) => {
   const id = crypto.randomUUID();
   const team: TeamId = sessions.size % 2 === 0 ? "blue" : "red";
   sessions.set(socket, {
-    id, team, input: neutral(),
+    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 },
     motor: {
       position: { x: team === "blue" ? -4 : 4, y: 1, z: 0 },
       velocity: { x: 0, y: 0, z: 0 },
@@ -67,6 +67,14 @@ setInterval(() => {
   world.step();
   for (const session of sessions.values()) {
     session.motor = stepPlayerMotor(session.motor, session.input, 1 / TICK_RATE);
+    const ball = ballBody.translation();
+    const request = resolveStrike(session.motor.position, { x: ball.x, y: ball.y, z: ball.z }, session.input, state.tick, session.interaction);
+    if (request) {
+      const impulse = calculateStrike(request.strike);
+      ballBody.setLinvel(impulse.linear, true);
+      ballBody.setAngvel(impulse.angular, true);
+      session.interaction = request.next;
+    }
   }
 
   const p = ballBody.translation();
