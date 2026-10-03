@@ -23,3 +23,4 @@ export function scoreGoal(state: MatchSnapshot, team: TeamId): MatchSnapshot {
     ball: { position: { x: 0, y: 0.35, z: 0 }, velocity: { x: 0, y: 0, z: 0 } },
   };
 }
+export * from "./carry.js";
