@@ -20,7 +20,7 @@ export function resolvePrecision(direction:Vec3,power:number,timingBias:number):
   const powerError=Math.abs(p-PRECISION.sweetSpot);
   const timingError=Math.abs(timing);
   const quality=clamp(1-powerError*.75-timingError*.35,0,1);
-  const angleOffsetDegrees=(1-quality)*PRECISION.maxAngleDegrees*Math.sign(timing||1);
+  const angleOffsetDegrees=timing===0?0:(1-quality)*PRECISION.maxAngleDegrees*Math.sign(timing);
   const angle=angleOffsetDegrees*Math.PI/180;
   const x=direction.x*Math.cos(angle)-direction.z*Math.sin(angle);
   const z=direction.x*Math.sin(angle)+direction.z*Math.cos(angle);
