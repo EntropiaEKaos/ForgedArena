@@ -71,7 +71,7 @@ setInterval(() => {
     const ballPosition = { x: ball.x, y: ball.y, z: ball.z };
     const distance = Math.hypot(session.motor.position.x - ball.x, session.motor.position.z - ball.z);
     const inTouchZone = distance <= 1.45;
-    if (inTouchZone && !session.touchingBall && !session.input.pass && !session.input.shoot) {
+    if (inTouchZone && !session.touchingBall && !session.input.pass && !session.input.lob && !session.input.shoot) {
       const bv = ballBody.linvel();
       const touch = resolveFirstTouch(session.motor.position, session.motor.velocity, ballPosition, { x: bv.x, y: bv.y, z: bv.z });
       if (touch.controlled) ballBody.setLinvel(touch.velocity, true);
@@ -79,17 +79,17 @@ setInterval(() => {
     session.touchingBall = inTouchZone;
     if (session.input.charging && session.timing.kind !== session.input.charging) session.timing = beginAction(session.input.charging, state.tick);
     let strikeInput = session.input;
-    const releasedAction = session.input.pass || session.input.shoot;
+    const releasedAction = session.input.pass || session.input.lob || session.input.shoot;
     if (releasedAction && !session.timing.kind) {
-      strikeInput = { ...session.input, pass: false, shoot: false, actionPower: 0 };
+      strikeInput = { ...session.input, pass: false, lob: false, shoot: false, actionPower: 0 };
     }
     if (releasedAction && session.timing.kind) {
       const released = releaseAction(session.timing, state.tick);
       if (released) {
-        const matches = (released.kind === "pass" && session.input.pass) || (released.kind === "shoot" && session.input.shoot);
+        const matches = (released.kind === "pass" && session.input.pass) || (released.kind === "lob" && session.input.lob) || (released.kind === "shoot" && session.input.shoot);
         strikeInput = matches
           ? { ...session.input, actionPower: released.power }
-          : { ...session.input, pass: false, shoot: false, actionPower: 0 };
+          : { ...session.input, pass: false, lob: false, shoot: false, actionPower: 0 };
         session.timing = released.next;
         if (matches) {
           const owner = [...sessions.entries()].find(([, s]) => s === session)?.[0];
