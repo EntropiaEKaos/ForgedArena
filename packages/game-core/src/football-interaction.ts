@@ -1,5 +1,6 @@
 import type { PlayerInput, Vec3 } from "@forged-arena/protocol";
 import type { StrikeInput } from "@forged-arena/physics";
+import { resolvePrecision } from "./precision.js";
 
 export const FOOTBALL_INTERACTION = Object.freeze({
   strikeRange: 1.65,
@@ -36,10 +37,12 @@ export function resolveStrike(
   const maxPower = input.shoot ? FOOTBALL_INTERACTION.shotMaxPower : FOOTBALL_INTERACTION.passMaxPower;
   const power = minPower + (maxPower - minPower) * requestedPower;
 
+  const precision = resolvePrecision(direction, power, 0);
+
   return {
     strike: {
       kind: input.shoot ? "shot" : "ground-pass",
-      direction,
+      direction: precision.direction,
       power,
     },
     next: { lastStrikeTick: tick },
