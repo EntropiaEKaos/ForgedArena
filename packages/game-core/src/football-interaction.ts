@@ -24,9 +24,9 @@ export function resolveStrike(
   if (tick - state.lastStrikeTick < FOOTBALL_INTERACTION.cooldownTicks) return null;
   if (!input.pass && !input.shoot) return null;
 
-  const moveLength = Math.hypot(input.moveX, input.moveZ);
+  const moveLength = Math.hypot(input.aimX, input.aimZ);
   const direction = moveLength > 0.1
-    ? { x: input.moveX / moveLength, y: 0, z: input.moveZ / moveLength }
+    ? { x: input.aimX / moveLength, y: 0, z: input.aimZ / moveLength }
     : { x: ball.x - player.x, y: 0, z: ball.z - player.z };
 
   return {
