@@ -5,6 +5,12 @@ describe("Football Interaction", () => {
   it("rejects strikes outside server range", () => expect(resolveStrike({x:0,y:1,z:0},{x:3,y:.35,z:0},input,20,{lastStrikeTick:0})).toBeNull());
   it("creates a ground pass in range", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},input,20,{lastStrikeTick:0})?.strike.kind).toBe("ground-pass"));
   it("creates a lob pass as a dedicated strike", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,pass:false,lob:true},20,{lastStrikeTick:0})?.strike.kind).toBe("lob-pass"));
+  it("creates a placed shot as a dedicated strike", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,pass:false,placedShot:true},20,{lastStrikeTick:0})?.strike.kind).toBe("placed-shot"));
+  it("placed shot uses the shot power curve", () => {
+    const placed=resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,pass:false,placedShot:true,actionPower:.5},20,{lastStrikeTick:0});
+    const shot=resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,pass:false,shoot:true,actionPower:.5},20,{lastStrikeTick:0});
+    expect(placed?.strike.power).toBeCloseTo(shot!.strike.power);
+  });
   it("uses aim independently from movement", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},input,20,{lastStrikeTick:0})?.strike.direction.z).toBeLessThan(0));
   it("prioritizes shot when requested", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,shoot:true},20,{lastStrikeTick:0})?.strike.kind).toBe("shot"));
   it("clamps low pass power to the pass floor", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,actionPower:-5},20,{lastStrikeTick:0})?.strike.power).toBeCloseTo(.34));
