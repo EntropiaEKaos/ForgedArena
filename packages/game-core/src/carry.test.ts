@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveCarry } from "./carry.js";
-const moving={seq:1,moveX:1,moveZ:0,aimX:1,aimZ:0,actionPower:.5,sprint:false,charging:null,pass:false,shoot:false,tackle:false};
+const moving={seq:1,moveX:1,moveZ:0,aimX:1,aimZ:0,actionPower:.5,sprint:false,charging:null,lob:false,pass:false,shoot:false,tackle:false};
 describe("Carry",()=>{
  it("requires movement",()=>expect(resolveCarry({x:0,y:1,z:0},{x:1,y:.35,z:0},{x:0,y:0,z:0},{...moving,moveX:0},20,{lastCarryTick:0})).toBeNull());
  it("requires ball range",()=>expect(resolveCarry({x:0,y:1,z:0},{x:3,y:.35,z:0},{x:0,y:0,z:0},moving,20,{lastCarryTick:0})).toBeNull());
