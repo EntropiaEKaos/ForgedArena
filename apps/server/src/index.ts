@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { beginAction, createInitialMatch, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState } from "@forged-arena/game-core";
+import { beginAction, createInitialMatch, gradeActionTiming, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState } from "@forged-arena/game-core";
 import { calculateStrike, FORGED_BALL } from "@forged-arena/physics";
 import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
 import { WebSocket, WebSocketServer } from "ws";
@@ -91,6 +91,10 @@ setInterval(() => {
           ? { ...session.input, actionPower: released.power }
           : { ...session.input, pass: false, shoot: false, actionPower: 0 };
         session.timing = released.next;
+        if (matches) {
+          const owner = [...sessions.entries()].find(([, s]) => s === session)?.[0];
+          if (owner?.readyState === WebSocket.OPEN) owner.send(JSON.stringify({type:"execution",payload:{grade:gradeActionTiming(released.power),power:released.power,kind:released.kind}} satisfies ServerMessage));
+        }
       }
     }
     const request = resolveStrike(session.motor.position, ballPosition, strikeInput, state.tick, session.interaction);
