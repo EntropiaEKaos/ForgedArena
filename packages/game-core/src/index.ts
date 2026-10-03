@@ -1,5 +1,6 @@
 import type { MatchSnapshot, TeamId } from "@forged-arena/protocol";
 export * from "./player-motor.js";
+export * from "./football-interaction.js";
 
 export const TICK_RATE = 30;
 export const MATCH_DURATION_MS = 6 * 60 * 1000;
