@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { createInitialMatch, resolveCarry, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type CarryState, type InteractionState, type MotorState } from "@forged-arena/game-core";
+import { beginAction, createInitialMatch, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState } from "@forged-arena/game-core";
 import { calculateStrike, FORGED_BALL } from "@forged-arena/physics";
 import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
 import { WebSocket, WebSocketServer } from "ws";
@@ -33,7 +33,7 @@ world.createCollider(
   ballBody,
 );
 
-type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; carry: CarryState; touchingBall: boolean };
+type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; carry: CarryState; touchingBall: boolean; timing: ActionTimingState };
 const sessions = new Map<WebSocket, Session>();
 const neutral = (seq = 0): PlayerInput => ({
   seq, moveX: 0, moveZ: 0, aimX: 1, aimZ: 0, actionPower: 0.5, sprint: false, charging: null, pass: false, shoot: false, tackle: false,
@@ -43,7 +43,7 @@ wss.on("connection", (socket) => {
   const id = crypto.randomUUID();
   const team: TeamId = sessions.size % 2 === 0 ? "blue" : "red";
   sessions.set(socket, {
-    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 }, carry: { lastCarryTick: -1000 }, touchingBall: false,
+    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 }, carry: { lastCarryTick: -1000 }, touchingBall: false, timing: { kind: null, startedTick: 0 },
     motor: {
       position: { x: team === "blue" ? -4 : 4, y: 1, z: 0 },
       velocity: { x: 0, y: 0, z: 0 },
@@ -77,7 +77,16 @@ setInterval(() => {
       if (touch.controlled) ballBody.setLinvel(touch.velocity, true);
     }
     session.touchingBall = inTouchZone;
-    const request = resolveStrike(session.motor.position, ballPosition, session.input, state.tick, session.interaction);
+    if (session.input.charging && session.timing.kind !== session.input.charging) session.timing = beginAction(session.input.charging, state.tick);
+    let strikeInput = session.input;
+    if ((session.input.pass || session.input.shoot) && session.timing.kind) {
+      const released = releaseAction(session.timing, state.tick);
+      if (released) {
+        strikeInput = { ...session.input, actionPower: released.power };
+        session.timing = released.next;
+      }
+    }
+    const request = resolveStrike(session.motor.position, ballPosition, strikeInput, state.tick, session.interaction);
     if (request) {
       const impulse = calculateStrike(request.strike);
       ballBody.setLinvel(impulse.linear, true);
