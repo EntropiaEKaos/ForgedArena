@@ -25,7 +25,7 @@ export function resolveStrike(
 ): StrikeRequest {
   if (planarDistance(player, ball) > FOOTBALL_INTERACTION.strikeRange) return null;
   if (tick - state.lastStrikeTick < FOOTBALL_INTERACTION.cooldownTicks) return null;
-  if (!input.pass && !input.shoot) return null;
+  if (!input.pass && !input.lob && !input.shoot) return null;
 
   const moveLength = Math.hypot(input.aimX, input.aimZ);
   const direction = moveLength > 0.1
@@ -41,7 +41,7 @@ export function resolveStrike(
 
   return {
     strike: {
-      kind: input.shoot ? "shot" : "ground-pass",
+      kind: input.shoot ? "shot" : input.lob ? "lob-pass" : "ground-pass",
       direction: precision.direction,
       power,
     },
