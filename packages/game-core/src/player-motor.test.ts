@@ -1,6 +1,6 @@
 import {describe,expect,it} from "vitest";import {stepPlayerMotor} from "./player-motor";
 const base={position:{x:0,y:1,z:0},velocity:{x:0,y:0,z:0},lastProcessedInput:0};
-const input=(seq:number,moveX:number,moveZ:number,sprint=false)=>({seq,moveX,moveZ,aimX:moveX,aimZ:moveZ,actionPower:.5,sprint,charging:null,pass:false,shoot:false,tackle:false});
+const input=(seq:number,moveX:number,moveZ:number,sprint=false)=>({seq,moveX,moveZ,aimX:moveX,aimZ:moveZ,actionPower:.5,sprint,charging:null,lob:false,pass:false,shoot:false,tackle:false});
 describe("Player Motor",()=>{
  it("accelerates from input",()=>{expect(stepPlayerMotor(base,input(1,1,0),1/30).velocity.x).toBeGreaterThan(0)});
  it("normalizes diagonal input",()=>{const s=stepPlayerMotor(base,input(1,1,1,true),1);expect(Math.hypot(s.velocity.x,s.velocity.z)).toBeLessThanOrEqual(9.21)});
