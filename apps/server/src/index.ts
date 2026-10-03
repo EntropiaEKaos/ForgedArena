@@ -1,8 +1,94 @@
-import {WebSocketServer,WebSocket} from "ws";import RAPIER from "@dimforge/rapier3d-compat";import {createInitialMatch,TICK_RATE,stepPlayerMotor,type MotorState} from "@forged-arena/game-core";import {FORGED_BALL} from "@forged-arena/physics";import type {ClientMessage,PlayerInput,ServerMessage,TeamId} from "@forged-arena/protocol";
-await RAPIER.init();const port=Number(process.env.PORT??8787),wss=new WebSocketServer({port});let state=createInitialMatch();
-const world=new RAPIER.World({x:0,y:-FORGED_BALL.gravity,z:0});world.timestep=1/TICK_RATE;world.createCollider(RAPIER.ColliderDesc.cuboid(12,.2,7).setFriction(FORGED_BALL.groundFriction).setRestitution(FORGED_BALL.restitution));
-const ballBody=world.createRigidBody(RAPIER.RigidBodyDesc.dynamic().setTranslation(0,FORGED_BALL.radius+.22,0).setLinearDamping(FORGED_BALL.linearDamping).setAngularDamping(FORGED_BALL.angularDamping).setCcdEnabled(true));world.createCollider(RAPIER.ColliderDesc.ball(FORGED_BALL.radius).setMass(FORGED_BALL.mass).setFriction(FORGED_BALL.groundFriction).setRestitution(FORGED_BALL.restitution),ballBody);
-type Session={id:string;team:TeamId;input:PlayerInput;motor:MotorState};const sessions=new Map<WebSocket,Session>();const neutral=(seq=0):PlayerInput=>({seq,moveX:0,moveZ:0,sprint:false,pass:false,shoot:false,tackle:false});
-wss.on("connection",(socket)=>{const id=crypto.randomUUID(),team:sessions.size%2===0?"blue":"red";sessions.set(socket,{id,team,input:neutral(),motor:{position:{x:team==="blue"?-4:4,y:1,z:0},velocity:{x:0,y:0,z:0},lastProcessedInput:0}});socket.send(JSON.stringify({type:"welcome",payload:{playerId:id,team}} satisfies ServerMessage));socket.on("message",(raw)=>{try{const msg=JSON.parse(raw.toString()) as ClientMessage;if(msg.type==="input"){const s=sessions.get(socket);if(s&&msg.payload.seq>s.input.seq)s.input=msg.payload;}}catch{}});socket.on("close",()=>sessions.delete(socket));});
-setInterval(()=>{world.step();for(const s of sessions.values())s.motor=stepPlayerMotor(s.motor,s.input,1/TICK_RATE);const p=ballBody.translation(),v=ballBody.linvel();state={...state,tick:state.tick+1,clockMs:Math.max(0,state.clockMs-1000/TICK_RATE),players:[...sessions.values()].map(s=>({id:s.id,team:s.team,position:s.motor.position,velocity:s.motor.velocity})),ball:{position:{x:p.x,y:p.y,z:p.z},velocity:{x:v.x,y:v.y,z:v.z}}};const data=JSON.stringify({type:"snapshot",payload:state} satisfies ServerMessage);for(const c of wss.clients)if(c.readyState===WebSocket.OPEN)c.send(data);},1000/TICK_RATE);
+import RAPIER from "@dimforge/rapier3d-compat";
+import { createInitialMatch, stepPlayerMotor, TICK_RATE, type MotorState } from "@forged-arena/game-core";
+import { FORGED_BALL } from "@forged-arena/physics";
+import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
+import { WebSocket, WebSocketServer } from "ws";
+
+await RAPIER.init();
+
+const port = Number(process.env.PORT ?? 8787);
+const wss = new WebSocketServer({ port });
+let state = createInitialMatch();
+
+const world = new RAPIER.World({ x: 0, y: -FORGED_BALL.gravity, z: 0 });
+world.timestep = 1 / TICK_RATE;
+world.createCollider(
+  RAPIER.ColliderDesc.cuboid(12, 0.2, 7)
+    .setFriction(FORGED_BALL.groundFriction)
+    .setRestitution(FORGED_BALL.restitution),
+);
+
+const ballBody = world.createRigidBody(
+  RAPIER.RigidBodyDesc.dynamic()
+    .setTranslation(0, FORGED_BALL.radius + 0.22, 0)
+    .setLinearDamping(FORGED_BALL.linearDamping)
+    .setAngularDamping(FORGED_BALL.angularDamping)
+    .setCcdEnabled(true),
+);
+world.createCollider(
+  RAPIER.ColliderDesc.ball(FORGED_BALL.radius)
+    .setMass(FORGED_BALL.mass)
+    .setFriction(FORGED_BALL.groundFriction)
+    .setRestitution(FORGED_BALL.restitution),
+  ballBody,
+);
+
+type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState };
+const sessions = new Map<WebSocket, Session>();
+const neutral = (seq = 0): PlayerInput => ({
+  seq, moveX: 0, moveZ: 0, sprint: false, pass: false, shoot: false, tackle: false,
+});
+
+wss.on("connection", (socket) => {
+  const id = crypto.randomUUID();
+  const team: TeamId = sessions.size % 2 === 0 ? "blue" : "red";
+  sessions.set(socket, {
+    id, team, input: neutral(),
+    motor: {
+      position: { x: team === "blue" ? -4 : 4, y: 1, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 },
+      lastProcessedInput: 0,
+    },
+  });
+
+  socket.send(JSON.stringify({ type: "welcome", payload: { playerId: id, team } } satisfies ServerMessage));
+  socket.on("message", (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString()) as ClientMessage;
+      if (msg.type !== "input") return;
+      const session = sessions.get(socket);
+      if (session && msg.payload.seq > session.input.seq) session.input = msg.payload;
+    } catch {}
+  });
+  socket.on("close", () => sessions.delete(socket));
+});
+
+setInterval(() => {
+  world.step();
+  for (const session of sessions.values()) {
+    session.motor = stepPlayerMotor(session.motor, session.input, 1 / TICK_RATE);
+  }
+
+  const p = ballBody.translation();
+  const v = ballBody.linvel();
+  state = {
+    ...state,
+    tick: state.tick + 1,
+    clockMs: Math.max(0, state.clockMs - 1000 / TICK_RATE),
+    players: [...sessions.values()].map((session) => ({
+      id: session.id, team: session.team,
+      position: session.motor.position, velocity: session.motor.velocity,
+    })),
+    ball: {
+      position: { x: p.x, y: p.y, z: p.z },
+      velocity: { x: v.x, y: v.y, z: v.z },
+    },
+  };
+
+  const data = JSON.stringify({ type: "snapshot", payload: state } satisfies ServerMessage);
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) client.send(data);
+  }
+}, 1000 / TICK_RATE);
+
 console.log(`ForgedArena authoritative server :${port} @ ${TICK_RATE}Hz`);
