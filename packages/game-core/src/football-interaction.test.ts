@@ -13,5 +13,14 @@ describe("Football Interaction", () => {
     const shot=resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,shoot:true,actionPower:.5},20,{lastStrikeTick:0});
     expect(shot!.strike.power).toBeGreaterThan(pass!.strike.power);
   });
+  it("applies deterministic precision to strike direction", () => {
+    const a=resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,actionPower:0},20,{lastStrikeTick:0});
+    const b=resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,actionPower:0},20,{lastStrikeTick:0});
+    expect(a?.strike.direction).toEqual(b?.strike.direction);
+  });
+  it("keeps precision deviation bounded in authoritative strike", () => {
+    const r=resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,actionPower:0},20,{lastStrikeTick:0});
+    expect(Math.hypot(r!.strike.direction.x,r!.strike.direction.z)).toBeCloseTo(1);
+  });
   it("enforces strike cooldown", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},input,24,{lastStrikeTick:20})).toBeNull());
 });
