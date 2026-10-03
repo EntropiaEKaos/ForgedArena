@@ -3,8 +3,10 @@ import type { StrikeInput } from "@forged-arena/physics";
 
 export const FOOTBALL_INTERACTION = Object.freeze({
   strikeRange: 1.65,
-  passPower: 0.62,
-  shotPower: 1,
+  passMinPower: 0.34,
+  passMaxPower: 0.82,
+  shotMinPower: 0.46,
+  shotMaxPower: 1,
   cooldownTicks: 8,
 });
 
@@ -29,11 +31,16 @@ export function resolveStrike(
     ? { x: input.aimX / moveLength, y: 0, z: input.aimZ / moveLength }
     : { x: ball.x - player.x, y: 0, z: ball.z - player.z };
 
+  const requestedPower = Math.max(0, Math.min(1, input.actionPower));
+  const minPower = input.shoot ? FOOTBALL_INTERACTION.shotMinPower : FOOTBALL_INTERACTION.passMinPower;
+  const maxPower = input.shoot ? FOOTBALL_INTERACTION.shotMaxPower : FOOTBALL_INTERACTION.passMaxPower;
+  const power = minPower + (maxPower - minPower) * requestedPower;
+
   return {
     strike: {
       kind: input.shoot ? "shot" : "ground-pass",
       direction,
-      power: input.shoot ? FOOTBALL_INTERACTION.shotPower : FOOTBALL_INTERACTION.passPower,
+      power,
     },
     next: { lastStrikeTick: tick },
   };
