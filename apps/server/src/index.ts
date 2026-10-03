@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { createInitialMatch, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type InteractionState, type MotorState } from "@forged-arena/game-core";
+import { createInitialMatch, resolveCarry, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type CarryState, type InteractionState, type MotorState } from "@forged-arena/game-core";
 import { calculateStrike, FORGED_BALL } from "@forged-arena/physics";
 import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
 import { WebSocket, WebSocketServer } from "ws";
@@ -33,7 +33,7 @@ world.createCollider(
   ballBody,
 );
 
-type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; touchingBall: boolean };
+type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; carry: CarryState; touchingBall: boolean };
 const sessions = new Map<WebSocket, Session>();
 const neutral = (seq = 0): PlayerInput => ({
   seq, moveX: 0, moveZ: 0, sprint: false, pass: false, shoot: false, tackle: false,
@@ -43,7 +43,7 @@ wss.on("connection", (socket) => {
   const id = crypto.randomUUID();
   const team: TeamId = sessions.size % 2 === 0 ? "blue" : "red";
   sessions.set(socket, {
-    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 }, touchingBall: false,
+    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 }, carry: { lastCarryTick: -1000 }, touchingBall: false,
     motor: {
       position: { x: team === "blue" ? -4 : 4, y: 1, z: 0 },
       velocity: { x: 0, y: 0, z: 0 },
@@ -83,6 +83,13 @@ setInterval(() => {
       ballBody.setLinvel(impulse.linear, true);
       ballBody.setAngvel(impulse.angular, true);
       session.interaction = request.next;
+    } else {
+      const bv = ballBody.linvel();
+      const carry = resolveCarry(session.motor.position, ballPosition, { x: bv.x, y: bv.y, z: bv.z }, session.input, state.tick, session.carry);
+      if (carry) {
+        ballBody.setLinvel(carry.velocity, true);
+        session.carry = carry.next;
+      }
     }
   }
 
