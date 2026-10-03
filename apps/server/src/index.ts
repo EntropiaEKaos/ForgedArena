@@ -36,7 +36,7 @@ world.createCollider(
 type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; carry: CarryState; touchingBall: boolean; timing: ActionTimingState };
 const sessions = new Map<WebSocket, Session>();
 const neutral = (seq = 0): PlayerInput => ({
-  seq, moveX: 0, moveZ: 0, aimX: 1, aimZ: 0, actionPower: 0.5, sprint: false, charging: null, pass: false, shoot: false, tackle: false,
+  seq, moveX: 0, moveZ: 0, aimX: 1, aimZ: 0, actionPower: 0.5, sprint: false, charging: null, lob: false, pass: false, shoot: false, tackle: false,
 });
 
 wss.on("connection", (socket) => {
