@@ -1,6 +1,6 @@
 export type TeamId="blue"|"red";
 export type Vec3={x:number;y:number;z:number};
-export type PlayerInput={seq:number;moveX:number;moveZ:number;sprint:boolean;pass:boolean;shoot:boolean;tackle:boolean};
+export type PlayerInput={seq:number;moveX:number;moveZ:number;aimX:number;aimZ:number;sprint:boolean;pass:boolean;shoot:boolean;tackle:boolean};
 export type PlayerSnapshot={id:string;team:TeamId;position:Vec3;velocity:Vec3};
 export type BallSnapshot={position:Vec3;velocity:Vec3};
 export type MatchSnapshot={tick:number;clockMs:number;score:Record<TeamId,number>;players:PlayerSnapshot[];ball:BallSnapshot};
