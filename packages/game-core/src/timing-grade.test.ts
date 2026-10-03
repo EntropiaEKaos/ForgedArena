@@ -1,0 +1,2 @@
+import {describe,expect,it} from "vitest";import {gradeActionTiming} from "./timing-grade.js";
+describe("timing grade",()=>{it("grades deterministic windows",()=>{expect(gradeActionTiming(.2)).toBe("early");expect(gradeActionTiming(.55)).toBe("good");expect(gradeActionTiming(.74)).toBe("perfect");expect(gradeActionTiming(.95)).toBe("late")});it("clamps out of range",()=>{expect(gradeActionTiming(-2)).toBe("early");expect(gradeActionTiming(9)).toBe("late")})});
