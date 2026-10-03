@@ -79,10 +79,17 @@ setInterval(() => {
     session.touchingBall = inTouchZone;
     if (session.input.charging && session.timing.kind !== session.input.charging) session.timing = beginAction(session.input.charging, state.tick);
     let strikeInput = session.input;
-    if ((session.input.pass || session.input.shoot) && session.timing.kind) {
+    const releasedAction = session.input.pass || session.input.shoot;
+    if (releasedAction && !session.timing.kind) {
+      strikeInput = { ...session.input, pass: false, shoot: false, actionPower: 0 };
+    }
+    if (releasedAction && session.timing.kind) {
       const released = releaseAction(session.timing, state.tick);
       if (released) {
-        strikeInput = { ...session.input, actionPower: released.power };
+        const matches = (released.kind === "pass" && session.input.pass) || (released.kind === "shoot" && session.input.shoot);
+        strikeInput = matches
+          ? { ...session.input, actionPower: released.power }
+          : { ...session.input, pass: false, shoot: false, actionPower: 0 };
         session.timing = released.next;
       }
     }
