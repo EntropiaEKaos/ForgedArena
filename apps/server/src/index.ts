@@ -77,7 +77,7 @@ setInterval(() => {
       if (touch.controlled) ballBody.setLinvel(touch.velocity, true);
     }
     session.touchingBall = inTouchZone;
-    if (session.input.charging && session.timing.kind !== session.input.charging) session.timing = beginAction(session.input.charging, state.tick);
+    if (session.input.charging && !session.timing.kind) session.timing = beginAction(session.input.charging, state.tick);
     let strikeInput = session.input;
     const releasedAction = session.input.pass || session.input.lob || session.input.shoot;
     if (releasedAction && !session.timing.kind) {
