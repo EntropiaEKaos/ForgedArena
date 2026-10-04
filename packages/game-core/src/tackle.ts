@@ -28,6 +28,7 @@ export function resolveTackle(
   if (distance > TACKLE.range || distance < 1e-6) return null;
 
   const facing = normalizePlanar(aim);
+  if (Math.hypot(facing.x, facing.z) < 1e-6) return null;
   const direction = normalizePlanar(toBall);
   const dot = facing.x * direction.x + facing.z * direction.z;
   if (dot < TACKLE.minFacingDot) return null;
