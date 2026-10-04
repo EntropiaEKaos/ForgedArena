@@ -1,6 +1,6 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { beginAction, createInitialMatch, gradeActionTiming, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, resolveTackle, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState, type TackleState } from "@forged-arena/game-core";
-import { calculateStrike, FORGED_BALL, magnusAcceleration } from "@forged-arena/physics";
+import { calculateStrike, FORGED_ARENA, FORGED_BALL, magnusAcceleration } from "@forged-arena/physics";
 import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
 import { WebSocket, WebSocketServer } from "ws";
 
@@ -13,10 +13,17 @@ let state = createInitialMatch();
 const world = new RAPIER.World({ x: 0, y: -FORGED_BALL.gravity, z: 0 });
 world.timestep = 1 / TICK_RATE;
 world.createCollider(
-  RAPIER.ColliderDesc.cuboid(12, 0.2, 7)
+  RAPIER.ColliderDesc.cuboid(FORGED_ARENA.halfWidth, 0.2, FORGED_ARENA.halfDepth)
     .setFriction(FORGED_BALL.groundFriction)
     .setRestitution(FORGED_BALL.restitution),
 );
+
+const wallY=FORGED_ARENA.wallHeight/2;
+const wallMaterial=(desc:RAPIER.ColliderDesc)=>desc.setFriction(FORGED_ARENA.wallFriction).setRestitution(FORGED_ARENA.wallRestitution);
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.wallThickness/2,FORGED_ARENA.wallHeight/2,FORGED_ARENA.halfDepth)).setTranslation(-FORGED_ARENA.halfWidth-FORGED_ARENA.wallThickness/2,wallY,0));
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.wallThickness/2,FORGED_ARENA.wallHeight/2,FORGED_ARENA.halfDepth)).setTranslation(FORGED_ARENA.halfWidth+FORGED_ARENA.wallThickness/2,wallY,0));
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.halfWidth,FORGED_ARENA.wallHeight/2,FORGED_ARENA.wallThickness/2)).setTranslation(0,wallY,-FORGED_ARENA.halfDepth-FORGED_ARENA.wallThickness/2));
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.halfWidth,FORGED_ARENA.wallHeight/2,FORGED_ARENA.wallThickness/2)).setTranslation(0,wallY,FORGED_ARENA.halfDepth+FORGED_ARENA.wallThickness/2));
 
 const ballBody = world.createRigidBody(
   RAPIER.RigidBodyDesc.dynamic()
