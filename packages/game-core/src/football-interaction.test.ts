@@ -11,6 +11,9 @@ describe("Football Interaction", () => {
     const shot=resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,pass:false,shoot:true,actionPower:.5},20,{lastStrikeTick:0});
     expect(placed?.strike.power).toBeCloseTo(shot!.strike.power);
   });
+  it("clamps positive spin intent", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,spin:99},20,{lastStrikeTick:0})?.strike.spin).toBe(1));
+  it("clamps negative spin intent", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,spin:-99},20,{lastStrikeTick:0})?.strike.spin).toBe(-1));
+  it("sanitizes non-finite spin to neutral", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,spin:Number.NaN},20,{lastStrikeTick:0})?.strike.spin).toBe(0));
   it("uses aim independently from movement", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},input,20,{lastStrikeTick:0})?.strike.direction.z).toBeLessThan(0));
   it("prioritizes shot when requested", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,shoot:true},20,{lastStrikeTick:0})?.strike.kind).toBe("shot"));
   it("clamps low pass power to the pass floor", () => expect(resolveStrike({x:0,y:1,z:0},{x:1,y:.35,z:0},{...input,actionPower:-5},20,{lastStrikeTick:0})?.strike.power).toBeCloseTo(.34));
