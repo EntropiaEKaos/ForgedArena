@@ -8,5 +8,8 @@ describe("Tackle",()=>{
   it("rejects a ball outside tackle range",()=>expect(resolveTackle(player,aim,{x:3,y:.35,z:0},30,ready)).toBeNull());
   it("rejects tackles aimed away from the ball",()=>expect(resolveTackle(player,{x:-1,y:0,z:0},ball,30,ready)).toBeNull());
   it("enforces authoritative cooldown",()=>expect(resolveTackle(player,aim,ball,40,{lastTackleTick:30})).toBeNull());
+  it("rejects zero aim",()=>expect(resolveTackle(player,{x:0,y:0,z:0},ball,30,ready)).toBeNull());
+  it("accepts the exact range boundary",()=>expect(resolveTackle(player,aim,{x:1.7,y:.35,z:0},30,ready)).not.toBeNull());
+  it("keeps knock speed bounded",()=>{const r=resolveTackle(player,aim,ball,30,ready);expect(Math.hypot(r!.velocity.x,r!.velocity.z)).toBeCloseTo(10.5);});
   it("is deterministic for identical inputs",()=>expect(resolveTackle(player,aim,ball,30,ready)).toEqual(resolveTackle(player,aim,ball,30,ready)));
 });
