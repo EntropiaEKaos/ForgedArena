@@ -10,7 +10,7 @@ describe("Forged Ball Model",()=>{
  it("clamps rebound restitution to a safe range",()=>expect(Math.abs(reflectWallVelocity({x:10,y:0,z:0},{x:-1,y:0,z:0},4).x)).toBeLessThanOrEqual(10));
  it("preserves spin as an independent state across a wall rebound",()=>{const spin={x:0,y:24,z:0};const before=magnusAcceleration({x:16,y:0,z:4},spin);const bounced=reflectWallVelocity({x:16,y:0,z:4},{x:-1,y:0,z:0});const after=magnusAcceleration(bounced,spin);expect(before.z).toBeLessThan(0);expect(after.z).toBeGreaterThan(0);});
  it("mirrors curved bank plays for opposite spin",()=>{const bounced=reflectWallVelocity({x:16,y:0,z:4},{x:-1,y:0,z:0});const left=magnusAcceleration(bounced,{x:0,y:-20,z:0});const right=magnusAcceleration(bounced,{x:0,y:20,z:0});expect(left.x).toBeCloseTo(-right.x);expect(left.z).toBeCloseTo(-right.z);});
- it("neutral spin stays neutral after a bank",()=>{const bounced=reflectWallVelocity({x:16,y:0,z:4},{x:-1,y:0,z:0});expect(magnusAcceleration(bounced,{x:0,y:0,z:0})).toEqual({x:0,y:0,z:0});});
+ it("neutral spin stays neutral after a bank",()=>{const bounced=reflectWallVelocity({x:16,y:0,z:4},{x:-1,y:0,z:0});const a=magnusAcceleration(bounced,{x:0,y:0,z:0});expect(Math.hypot(a.x,a.y,a.z)).toBe(0);});
  it("clamps strike power",()=>{expect(calculateStrike({kind:"shot",direction:{x:1,y:0,z:0},power:2}).linear.x).toBeLessThanOrEqual(38)});
  it("ground pass stays low",()=>{const r=calculateStrike({kind:"ground-pass",direction:{x:1,y:0,z:0},power:1});expect(r.linear.y).toBeLessThan(1)});
  it("lob has more lift than ground pass",()=>{const g=calculateStrike({kind:"ground-pass",direction:{x:1,y:0,z:0},power:1});const l=calculateStrike({kind:"lob-pass",direction:{x:1,y:0,z:0},power:1});expect(l.linear.y).toBeGreaterThan(g.linear.y)});
