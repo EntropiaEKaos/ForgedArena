@@ -35,3 +35,11 @@ export function calculateStrike(input:StrikeInput,t=FORGED_BALL):BallImpulse{
 export function magnusAcceleration(velocity:V3,spin:V3,t=FORGED_BALL):V3{
  return {x:t.magnus*(spin.y*velocity.z-spin.z*velocity.y),y:t.magnus*(spin.z*velocity.x-spin.x*velocity.z),z:t.magnus*(spin.x*velocity.y-spin.y*velocity.x)};
 }
+
+export function reflectWallVelocity(velocity:V3,normal:V3,restitution=FORGED_ARENA.wallRestitution):V3{
+ const n=normalize({x:normal.x,y:0,z:normal.z});
+ const dot=velocity.x*n.x+velocity.z*n.z;
+ if(Math.hypot(n.x,n.z)<1e-6||dot>=0)return {...velocity};
+ const bounce=(1+clamp(restitution,0,1))*dot;
+ return {x:velocity.x-bounce*n.x,y:velocity.y,z:velocity.z-bounce*n.z};
+}
