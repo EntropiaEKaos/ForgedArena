@@ -20,7 +20,7 @@ export function resolveCarry(
   state: CarryState,
 ): CarryResult {
   const moveLength = Math.hypot(input.moveX, input.moveZ);
-  if (moveLength < 0.15 || input.pass || input.lob || input.shoot || input.charging !== null) return null;
+  if (moveLength < 0.15 || input.pass || input.lob || input.shoot || input.placedShot || input.charging !== null) return null;
   if (tick - state.lastCarryTick < CARRY.cadenceTicks) return null;
   if (Math.hypot(player.x - ball.x, player.z - ball.z) > CARRY.range) return null;
   if (Math.hypot(ballVelocity.x, ballVelocity.y, ballVelocity.z) > CARRY.maxBallSpeed) return null;
