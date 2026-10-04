@@ -9,6 +9,14 @@ export const FORGED_BALL:Readonly<BallTuning>=Object.freeze({
  linearDamping:.055,angularDamping:.09,maxSpeed:38,maxSpin:70,
  gravity:9.81,magnus:.0018
 });
+export const FORGED_ARENA=Object.freeze({
+ halfWidth:12,
+ halfDepth:7,
+ wallThickness:.3,
+ wallHeight:2.4,
+ wallRestitution:.82,
+ wallFriction:.22
+});
 export type StrikeKind="ground-pass"|"lob-pass"|"shot"|"placed-shot";
 export type StrikeInput={kind:StrikeKind;direction:V3;power:number;spin?:number};
 export type BallImpulse={linear:V3;angular:V3};
