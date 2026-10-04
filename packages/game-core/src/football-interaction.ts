@@ -45,7 +45,7 @@ export function resolveStrike(
       kind: input.placedShot ? "placed-shot" : input.shoot ? "shot" : input.lob ? "lob-pass" : "ground-pass",
       direction: precision.direction,
       power,
-      spin: Math.max(-1, Math.min(1, Number.isFinite(input.spin) ? input.spin : 0)),
+      spin: isShot ? Math.max(-1, Math.min(1, Number.isFinite(input.spin) ? input.spin : 0)) : 0,
     },
     next: { lastStrikeTick: tick },
   };
