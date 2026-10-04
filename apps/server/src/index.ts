@@ -1,5 +1,5 @@
 import RAPIER from "@dimforge/rapier3d-compat";
-import { beginAction, createInitialMatch, gradeActionTiming, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState } from "@forged-arena/game-core";
+import { beginAction, createInitialMatch, gradeActionTiming, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, resolveTackle, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState, type TackleState } from "@forged-arena/game-core";
 import { calculateStrike, FORGED_BALL, magnusAcceleration } from "@forged-arena/physics";
 import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
 import { WebSocket, WebSocketServer } from "ws";
@@ -33,7 +33,7 @@ world.createCollider(
   ballBody,
 );
 
-type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; carry: CarryState; touchingBall: boolean; timing: ActionTimingState };
+type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; carry: CarryState; touchingBall: boolean; timing: ActionTimingState; tackle: TackleState };
 const sessions = new Map<WebSocket, Session>();
 const neutral = (seq = 0): PlayerInput => ({
   seq, moveX: 0, moveZ: 0, aimX: 1, aimZ: 0, actionPower: 0.5, spin: 0, sprint: false, charging: null, lob: false, placedShot: false, pass: false, shoot: false, tackle: false,
@@ -43,7 +43,7 @@ wss.on("connection", (socket) => {
   const id = crypto.randomUUID();
   const team: TeamId = sessions.size % 2 === 0 ? "blue" : "red";
   sessions.set(socket, {
-    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 }, carry: { lastCarryTick: -1000 }, touchingBall: false, timing: { kind: null, startedTick: 0 },
+    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 }, carry: { lastCarryTick: -1000 }, touchingBall: false, timing: { kind: null, startedTick: 0 }, tackle: { lastTackleTick: -1000 },
     motor: {
       position: { x: team === "blue" ? -4 : 4, y: 1, z: 0 },
       velocity: { x: 0, y: 0, z: 0 },
@@ -75,12 +75,22 @@ setInterval(() => {
     const ballPosition = { x: ball.x, y: ball.y, z: ball.z };
     const distance = Math.hypot(session.motor.position.x - ball.x, session.motor.position.z - ball.z);
     const inTouchZone = distance <= 1.45;
-    if (inTouchZone && !session.touchingBall && !session.input.pass && !session.input.lob && !session.input.shoot && !session.input.placedShot) {
+    let tackled = false;
+    if (session.input.tackle) {
+      const tackle = resolveTackle(session.motor.position, {x:session.input.aimX,y:0,z:session.input.aimZ}, ballPosition, state.tick, session.tackle);
+      if (tackle) {
+        ballBody.setLinvel(tackle.velocity, true);
+        session.tackle = tackle.next;
+        session.touchingBall = false;
+        tackled = true;
+      }
+    }
+    if (!tackled && inTouchZone && !session.touchingBall && !session.input.pass && !session.input.lob && !session.input.shoot && !session.input.placedShot) {
       const bv = ballBody.linvel();
       const touch = resolveFirstTouch(session.motor.position, session.motor.velocity, ballPosition, { x: bv.x, y: bv.y, z: bv.z });
       if (touch.controlled) ballBody.setLinvel(touch.velocity, true);
     }
-    session.touchingBall = inTouchZone;
+    if (!tackled) session.touchingBall = inTouchZone;
     if (session.input.charging && !session.timing.kind) session.timing = beginAction(session.input.charging, state.tick);
     let strikeInput = session.input;
     const releasedAction = session.input.pass || session.input.lob || session.input.shoot || session.input.placedShot;
@@ -101,13 +111,13 @@ setInterval(() => {
         }
       }
     }
-    const request = resolveStrike(session.motor.position, ballPosition, strikeInput, state.tick, session.interaction);
+    const request = tackled ? null : resolveStrike(session.motor.position, ballPosition, strikeInput, state.tick, session.interaction);
     if (request) {
       const impulse = calculateStrike(request.strike);
       ballBody.setLinvel(impulse.linear, true);
       ballBody.setAngvel(impulse.angular, true);
       session.interaction = request.next;
-    } else {
+    } else if (!tackled) {
       const bv = ballBody.linvel();
       const carry = resolveCarry(session.motor.position, ballPosition, { x: bv.x, y: bv.y, z: bv.z }, session.input, state.tick, session.carry);
       if (carry) {
