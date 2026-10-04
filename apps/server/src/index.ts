@@ -1,6 +1,6 @@
 import RAPIER from "@dimforge/rapier3d-compat";
 import { beginAction, createInitialMatch, gradeActionTiming, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState } from "@forged-arena/game-core";
-import { calculateStrike, FORGED_BALL } from "@forged-arena/physics";
+import { calculateStrike, FORGED_BALL, magnusAcceleration } from "@forged-arena/physics";
 import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
 import { WebSocket, WebSocketServer } from "ws";
 
@@ -64,6 +64,10 @@ wss.on("connection", (socket) => {
 });
 
 setInterval(() => {
+  const preV = ballBody.linvel();
+  const preW = ballBody.angvel();
+  const magnus = magnusAcceleration({x:preV.x,y:preV.y,z:preV.z},{x:preW.x,y:preW.y,z:preW.z});
+  ballBody.addForce({x:magnus.x*FORGED_BALL.mass,y:magnus.y*FORGED_BALL.mass,z:magnus.z*FORGED_BALL.mass}, true);
   world.step();
   for (const session of sessions.values()) {
     session.motor = stepPlayerMotor(session.motor, session.input, 1 / TICK_RATE);
