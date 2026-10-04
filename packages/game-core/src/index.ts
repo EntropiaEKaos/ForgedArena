@@ -37,3 +37,4 @@ export function releaseAction(state:ActionTimingState,tick:number){
  return {kind:state.kind,heldTicks:held,power:Math.max(0,Math.min(1,held/max)),next:{kind:null,startedTick:tick} as ActionTimingState};
 }
 export * from "./timing-grade.js";
+export * from "./tackle.js";
