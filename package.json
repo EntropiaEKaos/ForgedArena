@@ -1,0 +1,1 @@
+{"name":"forged-arena","private":true,"version":"0.1.0","packageManager":"pnpm@10.17.1","scripts":{"dev":"pnpm --filter @forged-arena/client dev","dev:server":"pnpm --filter @forged-arena/server dev","build":"pnpm -r build","typecheck":"pnpm -r typecheck","test":"pnpm -r test"},"devDependencies":{"typescript":"^5.9.3"}}

@@ -1,0 +1,9 @@
+export type TeamId="blue"|"red";
+export type Vec3={x:number;y:number;z:number};
+export type PlayerInput={seq:number;moveX:number;moveZ:number;aimX:number;aimZ:number;actionPower:number;spin:number;sprint:boolean;charging:"pass"|"lob"|"shoot"|"placed-shot"|null;pass:boolean;lob:boolean;shoot:boolean;placedShot:boolean;tackle:boolean};
+export type PlayerSnapshot={id:string;team:TeamId;position:Vec3;velocity:Vec3;lastProcessedInput:number};
+export type BallSnapshot={position:Vec3;velocity:Vec3};
+export type MatchSnapshot={tick:number;clockMs:number;score:Record<TeamId,number>;players:PlayerSnapshot[];ball:BallSnapshot};
+export type ClientMessage={type:"input";payload:PlayerInput};
+export type ExecutionGrade="early"|"good"|"perfect"|"late";
+export type ServerMessage={type:"snapshot";payload:MatchSnapshot}|{type:"welcome";payload:{playerId:string;team:TeamId}}|{type:"execution";payload:{grade:ExecutionGrade;power:number;kind:"pass"|"lob"|"shoot"|"placed-shot"}};

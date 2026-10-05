@@ -1,0 +1,159 @@
+import RAPIER from "@dimforge/rapier3d-compat";
+import { beginAction, createInitialMatch, gradeActionTiming, releaseAction, resolveCarry, resolveFirstTouch, resolveStrike, resolveTackle, stepPlayerMotor, TICK_RATE, type ActionTimingState, type CarryState, type InteractionState, type MotorState, type TackleState } from "@forged-arena/game-core";
+import { calculateStrike, FORGED_ARENA, FORGED_BALL, magnusAcceleration } from "@forged-arena/physics";
+import type { ClientMessage, PlayerInput, ServerMessage, TeamId } from "@forged-arena/protocol";
+import { WebSocket, WebSocketServer } from "ws";
+
+await RAPIER.init();
+
+const port = Number(process.env.PORT ?? 8787);
+const wss = new WebSocketServer({ port });
+let state = createInitialMatch();
+
+const world = new RAPIER.World({ x: 0, y: -FORGED_BALL.gravity, z: 0 });
+world.timestep = 1 / TICK_RATE;
+world.createCollider(
+  RAPIER.ColliderDesc.cuboid(FORGED_ARENA.halfWidth, 0.2, FORGED_ARENA.halfDepth)
+    .setFriction(FORGED_BALL.groundFriction)
+    .setRestitution(FORGED_BALL.restitution),
+);
+
+const wallY=FORGED_ARENA.wallHeight/2;
+const wallMaterial=(desc:RAPIER.ColliderDesc)=>desc.setFriction(FORGED_ARENA.wallFriction).setRestitution(FORGED_ARENA.wallRestitution);
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.wallThickness/2,FORGED_ARENA.wallHeight/2,FORGED_ARENA.halfDepth)).setTranslation(-FORGED_ARENA.halfWidth-FORGED_ARENA.wallThickness/2,wallY,0));
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.wallThickness/2,FORGED_ARENA.wallHeight/2,FORGED_ARENA.halfDepth)).setTranslation(FORGED_ARENA.halfWidth+FORGED_ARENA.wallThickness/2,wallY,0));
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.halfWidth,FORGED_ARENA.wallHeight/2,FORGED_ARENA.wallThickness/2)).setTranslation(0,wallY,-FORGED_ARENA.halfDepth-FORGED_ARENA.wallThickness/2));
+world.createCollider(wallMaterial(RAPIER.ColliderDesc.cuboid(FORGED_ARENA.halfWidth,FORGED_ARENA.wallHeight/2,FORGED_ARENA.wallThickness/2)).setTranslation(0,wallY,FORGED_ARENA.halfDepth+FORGED_ARENA.wallThickness/2));
+
+const ballBody = world.createRigidBody(
+  RAPIER.RigidBodyDesc.dynamic()
+    .setTranslation(0, FORGED_BALL.radius + 0.22, 0)
+    .setLinearDamping(FORGED_BALL.linearDamping)
+    .setAngularDamping(FORGED_BALL.angularDamping)
+    .setCcdEnabled(true),
+);
+world.createCollider(
+  RAPIER.ColliderDesc.ball(FORGED_BALL.radius)
+    .setMass(FORGED_BALL.mass)
+    .setFriction(FORGED_BALL.groundFriction)
+    .setRestitution(FORGED_BALL.restitution),
+  ballBody,
+);
+
+type Session = { id: string; team: TeamId; input: PlayerInput; motor: MotorState; interaction: InteractionState; carry: CarryState; touchingBall: boolean; timing: ActionTimingState; tackle: TackleState };
+const sessions = new Map<WebSocket, Session>();
+const neutral = (seq = 0): PlayerInput => ({
+  seq, moveX: 0, moveZ: 0, aimX: 1, aimZ: 0, actionPower: 0.5, spin: 0, sprint: false, charging: null, lob: false, placedShot: false, pass: false, shoot: false, tackle: false,
+});
+
+wss.on("connection", (socket) => {
+  const id = crypto.randomUUID();
+  const team: TeamId = sessions.size % 2 === 0 ? "blue" : "red";
+  sessions.set(socket, {
+    id, team, input: neutral(), interaction: { lastStrikeTick: -1000 }, carry: { lastCarryTick: -1000 }, touchingBall: false, timing: { kind: null, startedTick: 0 }, tackle: { lastTackleTick: -1000 },
+    motor: {
+      position: { x: team === "blue" ? -4 : 4, y: 1, z: 0 },
+      velocity: { x: 0, y: 0, z: 0 },
+      lastProcessedInput: 0,
+    },
+  });
+
+  socket.send(JSON.stringify({ type: "welcome", payload: { playerId: id, team } } satisfies ServerMessage));
+  socket.on("message", (raw) => {
+    try {
+      const msg = JSON.parse(raw.toString()) as ClientMessage;
+      if (msg.type !== "input") return;
+      const session = sessions.get(socket);
+      if (session && msg.payload.seq > session.input.seq) session.input = msg.payload;
+    } catch {}
+  });
+  socket.on("close", () => sessions.delete(socket));
+});
+
+setInterval(() => {
+  const preV = ballBody.linvel();
+  const preW = ballBody.angvel();
+  const magnus = magnusAcceleration({x:preV.x,y:preV.y,z:preV.z},{x:preW.x,y:preW.y,z:preW.z});
+  ballBody.addForce({x:magnus.x*FORGED_BALL.mass,y:magnus.y*FORGED_BALL.mass,z:magnus.z*FORGED_BALL.mass}, true);
+  world.step();
+  for (const session of sessions.values()) {
+    session.motor = stepPlayerMotor(session.motor, session.input, 1 / TICK_RATE);
+    const ball = ballBody.translation();
+    const ballPosition = { x: ball.x, y: ball.y, z: ball.z };
+    const distance = Math.hypot(session.motor.position.x - ball.x, session.motor.position.z - ball.z);
+    const inTouchZone = distance <= 1.45;
+    let tackled = false;
+    if (session.input.tackle) {
+      const tackle = resolveTackle(session.motor.position, {x:session.input.aimX,y:0,z:session.input.aimZ}, ballPosition, state.tick, session.tackle);
+      if (tackle) {
+        ballBody.setLinvel(tackle.velocity, true);
+        session.tackle = tackle.next;
+        session.touchingBall = false;
+        tackled = true;
+      }
+    }
+    if (!tackled && inTouchZone && !session.touchingBall && !session.input.pass && !session.input.lob && !session.input.shoot && !session.input.placedShot) {
+      const bv = ballBody.linvel();
+      const touch = resolveFirstTouch(session.motor.position, session.motor.velocity, ballPosition, { x: bv.x, y: bv.y, z: bv.z });
+      if (touch.controlled) ballBody.setLinvel(touch.velocity, true);
+    }
+    if (!tackled) session.touchingBall = inTouchZone;
+    if (session.input.charging && !session.timing.kind) session.timing = beginAction(session.input.charging, state.tick);
+    let strikeInput = session.input;
+    const releasedAction = session.input.pass || session.input.lob || session.input.shoot || session.input.placedShot;
+    if (releasedAction && !session.timing.kind) {
+      strikeInput = { ...session.input, pass: false, lob: false, shoot: false, placedShot: false, actionPower: 0 };
+    }
+    if (releasedAction && session.timing.kind) {
+      const released = releaseAction(session.timing, state.tick);
+      if (released) {
+        const matches = (released.kind === "pass" && session.input.pass) || (released.kind === "lob" && session.input.lob) || (released.kind === "shoot" && session.input.shoot) || (released.kind === "placed-shot" && session.input.placedShot);
+        strikeInput = matches
+          ? { ...session.input, actionPower: released.power }
+          : { ...session.input, pass: false, lob: false, shoot: false, placedShot: false, actionPower: 0 };
+        session.timing = released.next;
+        if (matches) {
+          const owner = [...sessions.entries()].find(([, s]) => s === session)?.[0];
+          if (owner?.readyState === WebSocket.OPEN) owner.send(JSON.stringify({type:"execution",payload:{grade:gradeActionTiming(released.power),power:released.power,kind:released.kind}} satisfies ServerMessage));
+        }
+      }
+    }
+    const request = tackled ? null : resolveStrike(session.motor.position, ballPosition, strikeInput, state.tick, session.interaction);
+    if (request) {
+      const impulse = calculateStrike(request.strike);
+      ballBody.setLinvel(impulse.linear, true);
+      ballBody.setAngvel(impulse.angular, true);
+      session.interaction = request.next;
+    } else if (!tackled) {
+      const bv = ballBody.linvel();
+      const carry = resolveCarry(session.motor.position, ballPosition, { x: bv.x, y: bv.y, z: bv.z }, session.input, state.tick, session.carry);
+      if (carry) {
+        ballBody.setLinvel(carry.velocity, true);
+        session.carry = carry.next;
+      }
+    }
+  }
+
+  const p = ballBody.translation();
+  const v = ballBody.linvel();
+  state = {
+    ...state,
+    tick: state.tick + 1,
+    clockMs: Math.max(0, state.clockMs - 1000 / TICK_RATE),
+    players: [...sessions.values()].map((session) => ({
+      id: session.id, team: session.team,
+      position: session.motor.position, velocity: session.motor.velocity, lastProcessedInput: session.motor.lastProcessedInput,
+    })),
+    ball: {
+      position: { x: p.x, y: p.y, z: p.z },
+      velocity: { x: v.x, y: v.y, z: v.z },
+    },
+  };
+
+  const data = JSON.stringify({ type: "snapshot", payload: state } satisfies ServerMessage);
+  for (const client of wss.clients) {
+    if (client.readyState === WebSocket.OPEN) client.send(data);
+  }
+}, 1000 / TICK_RATE);
+
+console.log(`ForgedArena authoritative server :${port} @ ${TICK_RATE}Hz`);
