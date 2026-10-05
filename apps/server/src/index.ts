@@ -142,7 +142,7 @@ setInterval(() => {
     clockMs: Math.max(0, state.clockMs - 1000 / TICK_RATE),
     players: [...sessions.values()].map((session) => ({
       id: session.id, team: session.team,
-      position: session.motor.position, velocity: session.motor.velocity,
+      position: session.motor.position, velocity: session.motor.velocity, lastProcessedInput: session.motor.lastProcessedInput,
     })),
     ball: {
       position: { x: p.x, y: p.y, z: p.z },
